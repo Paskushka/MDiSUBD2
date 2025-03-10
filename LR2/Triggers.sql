@@ -135,21 +135,39 @@ BEGIN
 END;
 /
 
+CREATE OR REPLACE TRIGGER trg_update_c_val_on_insert
+BEFORE INSERT ON students
+FOR EACH ROW
+BEGIN
+    UPDATE groups
+    SET c_val = c_val + 1
+    WHERE group_id = :NEW.group_id;
+END;
+/
 
-SELECT * FROM GROUPS;
-SELECT * FROM STUDENTS;
-DELETE FROM groups WHERE group_id = 2;
-DROP TABLE GROUPS
-SELECT * FROM GROUPS;
-SELECT * FROM STUDENTS;
--- несуществующая группа 99
-INSERT INTO students (student_name, group_id) VALUES ('David', 99);
+CREATE OR REPLACE TRIGGER trg_update_c_val_on_delete
+BEFORE DELETE ON students
+FOR EACH ROW
+BEGIN
+    IF NOT global_variables.is_group_delete_cascade THEN
+        UPDATE groups
+        SET c_val = c_val - 1
+        WHERE group_id = :OLD.group_id;
+    END IF;
+END;
+/
 
-INSERT INTO groups (group_name) VALUES ('Physics');
-INSERT INTO students (student_name, group_id) VALUES ('Eve', 22);
-SELECT * FROM students WHERE group_id = 22;
-UPDATE groups SET group_id = 10 WHERE group_id = 22;
-
-INSERT INTO groups (group_name) VALUES ('english');
-INSERT INTO students (student_name, group_id) VALUES ('Jack', 2);
-INSERT INTO students (student_name, group_id) VALUES ('Lana', 1);
+CREATE OR REPLACE TRIGGER trg_update_c_val_on_update
+BEFORE UPDATE OF group_id ON students
+FOR EACH ROW
+BEGIN
+    IF :OLD.group_id != :NEW.group_id THEN
+        UPDATE groups
+        SET c_val = c_val - 1
+        WHERE group_id = :OLD.group_id;
+        UPDATE groups
+        SET c_val = c_val + 1
+        WHERE group_id = :NEW.group_id;
+    END IF;
+END;
+/
